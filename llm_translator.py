@@ -14,10 +14,10 @@ from openai import OpenAI
 
 with open("api_key.txt", "r", encoding="utf-8") as file:
    API_KEY = file.read() 
-   print(API_KEY)
+   #print(API_KEY)
 
 BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-MODEL_NAME = "qwen-flash"
+MODEL_NAME = "qwen3.5-35b-a3b"
 
 # 初始化 OpenAI 客户端
 client = OpenAI(
@@ -26,7 +26,7 @@ client = OpenAI(
 )
 
 # 批处理大小：每次发送给大模型翻译的番剧数量
-BATCH_SIZE = 20
+BATCH_SIZE = 30
 # 重试机制：遇到网络请求失败时的最大重试次数
 MAX_RETRIES = 5
 
@@ -48,9 +48,9 @@ def call_llm_api(romaji_list):
     调用大语言模型 API，执行批量翻译。
     """
     system_prompt = (
-        "你是一个资深的日本动漫 (ACG) 本地化翻译专家。你的任务是将用户提供的罗马音番剧名称准确翻译为中文官方译名或通用惯用译名。\n"
+        "你是一个资深的日本动漫 (ACG) 本地化翻译专家。你的任务是将用户提供的番剧名称准确翻译为中文官方译名或通用惯用译名，并且联网搜索翻译是否准确。\n"
         "严格遵守以下规则：\n"
-        "1. 如果是知名番剧，请输出标准中文译名。\n"
+        "1. 如果是知名番剧，请输出标准中文译名，注意译名必须确保准确。\n"
         "2. 如果是冷门番剧，请根据罗马音进行合理的意译或音译，不要留空。\n"
         "3. 必须仅返回一个合法的 JSON 字典，Key 为原始罗马音，Value 为翻译后的中文名。不要附加任何解释文本。"
     )
