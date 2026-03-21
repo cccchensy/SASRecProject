@@ -150,3 +150,15 @@ if __name__ == '__main__':
     # 5. 启动训练主循环
     print("开始训练...")
     train_model(model, train_loader, val_loader, NUM_EPOCHS, LEARNING_RATE, DEVICE)
+
+    # 确保存放模型权重的目录存在
+    MODEL_SAVE_DIR = './saved_models'
+    if not os.path.exists(MODEL_SAVE_DIR):
+        os.makedirs(MODEL_SAVE_DIR)
+        
+    model_save_path = os.path.join(MODEL_SAVE_DIR, 'sasrec_model_final.pth')
+    
+    print("训练结束，正在保存模型权重...")
+    # 提取模型的 state_dict 并序列化保存
+    torch.save(model.state_dict(), model_save_path)
+    print(f"模型权重已成功保存至: {model_save_path}")
