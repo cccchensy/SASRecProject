@@ -5,11 +5,14 @@ import torch.nn as nn
 from torch.optim import Adam
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from torch.utils.data import DataLoader
 
 # 导入项目中另外两个模块的类
 from sasrec_dataset import SASRecDataset
 from sasrec_model import SASRec
+
+MODEL_SAVE_DIR = './saved_models'
 
 def evaluate(model, data_loader, item_emb_weight, device):
     """
@@ -51,19 +54,28 @@ def evaluate(model, data_loader, item_emb_weight, device):
                     
     return np.mean(HT), np.mean(NDCG)
 
-def train_model(model, train_loader, val_loader, epochs, lr, device):
+def train_model(model, train_loader, val_loader, epochs, lr, device, save_dir='./saved_models'):
     """
-    模型训练主循环
+    模型训练主循环 (包含进度条与最佳权重自动保存机制)
     """
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+        
     bce_criterion = nn.BCEWithLogitsLoss()
     optimizer = Adam(model.parameters(), lr=lr)
     item_emb_weight = model.item_emb
+    
+    # 记录历史最高的 NDCG 分数
+    best_ndcg = 0.0
+    best_model_path = os.path.join(save_dir, 'sasrec_model_best.pth')
     
     for epoch in range(1, epochs + 1):
         model.train()
         total_loss = 0.0
         
-        for batch_idx, (user, seq_input, target_pos, target_neg) in enumerate(train_loader):
+        progress_bar = tqdm(enumerate(train_loader), total=len(train_loader), desc=f"Epoch {epoch:3d}")
+        
+        for batch_idx, (user, seq_input, target_pos, target_neg) in progress_bar:
             seq_input = seq_input.to(device)
             target_pos = target_pos.to(device)
             target_neg = target_neg.to(device)
@@ -93,13 +105,23 @@ def train_model(model, train_loader, val_loader, epochs, lr, device):
             optimizer.step()
             
             total_loss += loss.item()
+            progress_bar.set_postfix(loss=f"{(total_loss / (batch_idx + 1)):.4f}")
             
-        print(f"Epoch {epoch:3d} | Train Loss: {total_loss / len(train_loader):.4f}")
+        print("") 
         
-        # 每隔 5 个 Epoch 评估一次，避免频繁评估拖慢训练速度
+        # 核心修改点：评估与模型保存逻辑
         if epoch % 5 == 0:
             hr, ndcg = evaluate(model, val_loader, item_emb_weight, device)
             print(f"--- Eval @ Epoch {epoch} | HR@10: {hr:.4f} | NDCG@10: {ndcg:.4f} ---")
+            
+            # 判断当前 NDCG 是否超越了历史最高记录
+            if ndcg > best_ndcg:
+                best_ndcg = ndcg
+                print(f"[*] 发现更优的 NDCG: {best_ndcg:.4f}，正在保存最佳模型权重...")
+                # 将当前这一刻的模型参数写入硬盘
+                torch.save(model.state_dict(), best_model_path)
+                
+    print(f"训练全部结束。最优模型已保存在: {best_model_path}，最高 NDCG@10 为: {best_ndcg:.4f}")
 
 
 if __name__ == '__main__':
@@ -152,7 +174,7 @@ if __name__ == '__main__':
     train_model(model, train_loader, val_loader, NUM_EPOCHS, LEARNING_RATE, DEVICE)
 
     # 确保存放模型权重的目录存在
-    MODEL_SAVE_DIR = './saved_models'
+    #MODEL_SAVE_DIR = './saved_models'
     if not os.path.exists(MODEL_SAVE_DIR):
         os.makedirs(MODEL_SAVE_DIR)
         

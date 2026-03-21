@@ -8,4 +8,5 @@
 
 # 忽略 Python 运行产生的缓存文件（非常推荐加上）
 __pycache__/
+.vscode/
 *.pyc
