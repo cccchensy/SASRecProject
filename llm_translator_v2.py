@@ -12,17 +12,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from openai import OpenAI
 from volcenginesdkarkruntime import Ark
 
-# ==========================================
-# 0. 暴力清洗系统代理残留 (防止环境干扰)
-# ==========================================
 proxy_keys = ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY']
 for key in proxy_keys:
     if key in os.environ:
         del os.environ[key]
 
-# ==========================================
-# 1. 双引擎 API 核心配置区 
-# ==========================================
 # 读取阿里云 Key
 with open("api_key_aliyun.txt", "r", encoding="utf-8") as file:
     ALIYUN_API_KEY = file.read().strip() 
@@ -53,15 +47,12 @@ client_volc = Ark(
     http_client=http_client
 )
 
-# ==========================================
-# 2. 并发与任务调度配置
-# ==========================================
 BATCH_SIZE = 30
 MAX_RETRIES = 5
-# 核心：设置最大并发线程数。建议设置为 4 或 6，太高容易触发双边的 429 并发超限报警
+
 MAX_WORKERS = 4 
 
-# 创建一个全局文件锁，确保多线程写入 checkpoint 时不会导致文件损坏
+# 全局文件锁，确保多线程写入 checkpoint 时不会导致文件损坏
 file_lock = threading.Lock()
 
 def extract_json_from_text(text):
@@ -73,7 +64,7 @@ def extract_json_from_text(text):
 
 def call_llm_api_worker(romaji_list, provider):
     """
-    单个线程的任务函数：负责向指定的提供商（阿里云或火山）发起请求
+    单个线程的任务函数：负责向指定的提供商发起请求
     """
     system_prompt = (
         "你是一个资深的动漫 (ACG) 本地化翻译专家。你的任务是将用户提供的番剧名称准确翻译为中文官方名称或通用惯用译名。\n"
@@ -175,7 +166,6 @@ def batch_translate_anime_concurrent(csv_path, checkpoint_path="translation_chec
     return translated_db
 
 def generate_final_inference_dict(csv_path, translated_db, output_pkl_path="id2name.pkl"):
-    # (此函数代码无需改变，保持原样即可)
     df = pd.read_csv(csv_path, usecols=['anime_id', 'title'])
     df = df.dropna(subset=['anime_id', 'title'])
     df['anime_id'] = df['anime_id'].astype(str)
