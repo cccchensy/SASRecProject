@@ -29,7 +29,7 @@ client = OpenAI(
     http_client=http_client
 )
 
-BATCH_SIZE = 15
+BATCH_SIZE = 30
 MAX_RETRIES = 5
 
 def extract_json_from_text(text):
