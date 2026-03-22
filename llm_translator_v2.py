@@ -21,14 +21,14 @@ for key in proxy_keys:
 with open("api_key_aliyun.txt", "r", encoding="utf-8") as file:
     ALIYUN_API_KEY = file.read().strip() 
 ALIYUN_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-ALIYUN_MODEL = "qwen3.5-flash"
+ALIYUN_MODEL = "qwen3.5-27b"
 
 # 读取火山引擎 Key
 with open("api_key_volc.txt", "r", encoding="utf-8") as file:
     VOLC_API_KEY = file.read().strip()
 VOLC_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
 # 注意：请确保这是你在火山控制台创建的有效推理接入点 ID (Endpoint)
-VOLC_MODEL = "doubao-seed-2-0-lite-260215" 
+VOLC_MODEL = "doubao-seed-2-0-pro-260215" 
 
 # 全局超长等待直连客户端
 http_client = httpx.Client(trust_env=False, verify=False, timeout=120.0)
@@ -186,7 +186,8 @@ def generate_final_inference_dict(csv_path, translated_db, output_pkl_path="id2n
     print(f"[Success] 推断字典生成完毕: {output_pkl_path} (容量: {len(id2chinese)} 部)")
 
 if __name__ == "__main__":
-    csv_file_path = r".\mal_dataset_clean\anime.csv"
+    # csv_file_path = r".\mal_dataset_clean\anime.csv"
+    csv_file_path = "untranslated_anime.csv"
     checkpoint_file = "translation_checkpoint.json"
     final_dict_file = "id2name.pkl"
     
