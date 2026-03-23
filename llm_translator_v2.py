@@ -47,7 +47,7 @@ client_volc = Ark(
     http_client=http_client
 )
 
-BATCH_SIZE = 30
+BATCH_SIZE = 1
 MAX_RETRIES = 5
 
 MAX_WORKERS = 4 

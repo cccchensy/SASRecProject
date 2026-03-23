@@ -17,6 +17,7 @@ def load_environment():
     data_dir = './sasrec_features'
     model_dir = './saved_models'
     
+    # 1. 加载模型训练时使用的基础字典 (Raw ID -> Model ID)
     dict_path = os.path.join(data_dir, 'item2id.pkl')
     if not os.path.exists(dict_path):
         raise FileNotFoundError(f"未找到字典文件: {dict_path}")
@@ -24,9 +25,26 @@ def load_environment():
     with open(dict_path, 'rb') as f:
         item2id = pickle.load(f)
         
-    id2item = {v: k for k, v in item2id.items()}
+    # 2. 加载我们刚刚做好的中文翻译字典 (Raw ID -> 中文名)
+    # 注意：确保这个 pkl 文件与你的 inference.py 在同一个目录下
+    chinese_dict_path = 'id2name.pkl' 
+    if os.path.exists(chinese_dict_path):
+        with open(chinese_dict_path, 'rb') as f:
+            rawid2chinese = pickle.load(f)
+    else:
+        print("[Warning] 未找到 id2name.pkl，将默认使用原始 ID 展示。")
+        rawid2chinese = {}
+        
+    # 3. 核心修改：构建 Model ID 到 中文名 的直接映射
+    # id2item 字典的 Key 是模型连续 ID，Value 直接变成了流畅的中文番剧名
+    id2item = {}
+    for raw_id, model_id in item2id.items():
+        # raw_id 需要转为字符串以匹配我们刚刚生成的字典
+        id2item[model_id] = rawid2chinese.get(str(raw_id), f"未知番剧_{raw_id}")
+        
     item_num = len(item2id)
     
+    # ... (下方初始化 SASRec 模型和加载权重的代码保持完全不变) ...
     max_seq_len = 50
     hidden_units = 50
     num_heads = 1
@@ -43,9 +61,6 @@ def load_environment():
     ).to(device)
     
     weight_path = os.path.join(model_dir, 'sasrec_model_best.pth')
-    if not os.path.exists(weight_path):
-        raise FileNotFoundError(f"未找到权重文件: {weight_path}")
-        
     model.load_state_dict(torch.load(weight_path, map_location=device))
     model.eval()
     
