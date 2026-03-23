@@ -68,13 +68,14 @@ def load_environment():
 
 def interactive_recommendation(model, id2item, max_seq_len, device):
     """
-    交互式冷启动推荐与 I2I 相似推荐逻辑
+    交互式冷启动推荐与 I2I 相似推荐逻辑 (加入 E&E 动态强化探测策略)
     """
     valid_ids = [item_id for item_id in id2item.keys() if item_id != 0]
-    popular_pool = sorted(valid_ids)[:200]
+    # 稍微扩大热门池以保证足够的随机探索空间
+    popular_pool = sorted(valid_ids)[:500]
     
     print("\n" + "="*60)
-    print("欢迎使用番剧推荐系统 - 冷启动与深度关联推断")
+    print("欢迎使用番剧推荐系统 - 动态强化冷启动推断")
     print("="*60)
     
     user_sequence = []
@@ -84,19 +85,57 @@ def interactive_recommendation(model, id2item, max_seq_len, device):
     print(f"\n[Step 1] 构建初始兴趣序列 (目标: 至少收集 {target_n} 部)")
     print("输入说明: y(看过/喜欢), n(没看过/不喜欢), f(提前结束并推荐)\n")
     
+    # E&E 策略计数器：控制智能预测与随机探索的比例
+    smart_recommend_counter = 0
+    
     while len(user_sequence) < target_n:
-        available_popular = list(set(popular_pool) - seen_items)
-        
-        if not available_popular:
-            available_global = list(set(valid_ids) - seen_items)
-            if not available_global:
-                break
-            item_id = random.choice(available_global)
-        else:
-            item_id = random.choice(available_popular)
+        # 策略分支 1: 序列为空，或达到了 3 次智能推荐的阈值，触发【随机探索】
+        if not user_sequence or smart_recommend_counter >= 3:
+            available_popular = list(set(popular_pool) - seen_items)
+            if available_popular:
+                item_id = random.choice(available_popular)
+            else:
+                available_global = list(set(valid_ids) - seen_items)
+                if not available_global:
+                    break
+                item_id = random.choice(available_global)
             
+            if user_sequence:
+                tag = "[随机探索]"
+                smart_recommend_counter = 0 # 触发随机后，重置计数器
+            else:
+                tag = "[热门初始]"
+                
+        # 策略分支 2: 已有 y 记录，进行实时张量推断，触发【智能关联】
+        else:
+            seq_input = np.zeros(max_seq_len, dtype=np.int64)
+            seq_len = len(user_sequence)
+            if seq_len >= max_seq_len:
+                seq_input[:] = user_sequence[-max_seq_len:]
+            else:
+                seq_input[-seq_len:] = user_sequence
+                
+            seq_tensor = torch.tensor([seq_input], dtype=torch.long).to(device)
+            
+            with torch.no_grad():
+                seq_out = model(seq_tensor)
+                final_feat = seq_out[:, -1, :] 
+                all_item_emb = model.item_emb.weight 
+                logits = torch.matmul(final_feat, all_item_emb.transpose(0, 1)).squeeze(0)
+                
+                # 负反馈屏蔽机制：将所有看过的 (y) 和 标记为不要的 (n) 全部屏蔽
+                for seen_id in seen_items:
+                    logits[seen_id] = -1e9
+                logits[0] = -1e9 # 屏蔽 Padding
+                
+                # 选取当前序列下概率最高的那一部番剧
+                item_id = torch.argmax(logits).item()
+                
+            tag = "[智能关联]"
+            smart_recommend_counter += 1
+
         anime_name = id2item[item_id]
-        ans = input(f"《{anime_name}》: ").strip().lower()
+        ans = input(f"{tag} 《{anime_name}》: ").strip().lower()
         
         if ans in ['f', 'finish', 'q', 'quit']:
             if len(user_sequence) < target_n:
@@ -116,16 +155,41 @@ def interactive_recommendation(model, id2item, max_seq_len, device):
         else:
             print("  -> 输入无效，请输入 y, n, 或 f。")
 
+    # 阶段 2：达标后的自由探索阶段，依然保持这种动态关联逻辑
     if len(user_sequence) >= target_n:
-        print(f"\n[Info] 已达标 ({target_n}部)。可继续标记以提升精度，或输入 'f' 获取推荐。")
+        print(f"\n[Info] 已达标 ({target_n}部)。您可以继续标记以提升模型精度，或输入 'f' 立即获取最终推荐。")
         while True:
-            available_ids = list(set(valid_ids) - seen_items)
-            if not available_ids:
-                break
-            
-            item_id = random.choice(available_ids)
+            if smart_recommend_counter >= 3:
+                available_ids = list(set(popular_pool) - seen_items)
+                if not available_ids:
+                    available_ids = list(set(valid_ids) - seen_items)
+                if not available_ids:
+                    break
+                item_id = random.choice(available_ids)
+                tag = "[随机探索]"
+                smart_recommend_counter = 0
+            else:
+                seq_input = np.zeros(max_seq_len, dtype=np.int64)
+                seq_len = len(user_sequence)
+                if seq_len >= max_seq_len:
+                    seq_input[:] = user_sequence[-max_seq_len:]
+                else:
+                    seq_input[-seq_len:] = user_sequence
+                    
+                seq_tensor = torch.tensor([seq_input], dtype=torch.long).to(device)
+                with torch.no_grad():
+                    seq_out = model(seq_tensor)
+                    final_feat = seq_out[:, -1, :] 
+                    logits = torch.matmul(final_feat, model.item_emb.weight.transpose(0, 1)).squeeze(0)
+                    for seen_id in seen_items:
+                        logits[seen_id] = -1e9
+                    logits[0] = -1e9 
+                    item_id = torch.argmax(logits).item()
+                tag = "[智能关联]"
+                smart_recommend_counter += 1
+                
             anime_name = id2item[item_id]
-            ans = input(f"《{anime_name}》: ").strip().lower()
+            ans = input(f"{tag} 《{anime_name}》: ").strip().lower()
             
             if ans in ['f', 'finish', 'q', 'quit', '']:
                 break
@@ -140,6 +204,9 @@ def interactive_recommendation(model, id2item, max_seq_len, device):
         print("\n[Error] 未提供有效序列，程序终止。")
         return
 
+    # ==========================================
+    # 以下为生成最终推荐的代码，保持完全不变
+    # ==========================================
     print(f"\n[System] 正在基于 {len(user_sequence)} 部番剧进行张量推断...")
     
     seq_input = np.zeros(max_seq_len, dtype=np.int64)
@@ -172,14 +239,11 @@ def interactive_recommendation(model, id2item, max_seq_len, device):
         anime_name = id2item.get(item_id, "未知番剧")
         print(f" Top {rank:2d} | 《{anime_name}》")
         
-    # ---------- 新增功能：基于 Top-3 的关联推荐 (I2I) ----------
     print("\n" + "="*60)
     print(" [Step 3] 看了又看：深度关联探索 (基于 Top-3 推荐)")
     print("="*60)
     
     top3_indices = top_indices[:3]
-    
-    # 对整个番剧 Embedding 矩阵进行 L2 归一化，以便计算余弦相似度
     norm_item_emb = F.normalize(all_item_emb, p=2, dim=1)
     
     with torch.no_grad():
@@ -188,19 +252,14 @@ def interactive_recommendation(model, id2item, max_seq_len, device):
             print(f"\n >>> 因为为您推荐了: 《{target_name}》")
             print("     看这部番的用户，强烈关联了以下作品：")
             
-            # 获取目标番剧的归一化向量 (1, hidden_units)
             target_vec = norm_item_emb[target_item_id].unsqueeze(0)
-            
-            # 计算目标向量与所有库内向量的余弦相似度
             sim_scores = torch.matmul(target_vec, norm_item_emb.transpose(0, 1)).squeeze(0)
             
-            # 屏蔽目标番剧本身、Padding ID 以及用户已经看过的番剧
             sim_scores[target_item_id] = -1.0
             sim_scores[0] = -1.0
             for seen_id in seen_items:
                 sim_scores[seen_id] = -1.0
                 
-            # 提取相似度最高的 Top-5
             _, sim_top_indices = torch.topk(sim_scores, k=5)
             sim_top_indices = sim_top_indices.cpu().numpy().tolist()
             
