@@ -9,7 +9,6 @@ mal_dataset_clean/
 sasrec_features/
 *.csv
 *.tsv
-*.pkl
 *.npy
 *.parquet
 *.txt
