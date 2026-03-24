@@ -19,11 +19,11 @@
 推荐使用 Anaconda 构建虚拟环境。请在终端执行以下命令：
 
 1. 创建并激活虚拟环境 (推荐 Python 3.9+)(不建议使用 Python 3.12+)：
-conda create -n anime_rec python=3.10 -y
-conda activate anime_rec
+- conda create -n anime_rec python=3.10 -y
+- conda activate anime_rec
 
 2. 安装核心依赖：
-pip install -r requirements.txt
+- pip install -r requirements.txt
 
 注：本推断程序原生支持 CPU 运行。如果您的设备支持 CUDA，程序将自动调用 GPU 以加速张量乘法运算。
 
