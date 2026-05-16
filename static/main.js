@@ -49,7 +49,8 @@ async function startSession() {
 async function submitFeedback(feedback) {
     if (isLoading || !sessionId || !currentCandidate) return;
 
-    setLoading(true);
+    // 快速操作：只禁用按钮，不显示全屏遮罩，避免闪屏
+    setButtonsDisabled(true);
     hideError();
 
     try {
@@ -85,7 +86,7 @@ async function submitFeedback(feedback) {
     } catch (e) {
         showError("提交反馈失败: " + e.message);
     } finally {
-        setLoading(false);
+        setButtonsDisabled(false);
     }
 }
 
@@ -248,21 +249,19 @@ function hideResults() {
 function setLoading(state) {
     isLoading = state;
     $("loading-overlay").classList.toggle("hidden", !state);
+    setButtonsDisabled(state);
+}
 
-    // 禁用/启用所有按钮
-    const buttons = document.querySelectorAll(".btn");
-    buttons.forEach((btn) => {
-        if (state) {
-            btn.dataset.wasDisabled = btn.disabled;
-            btn.disabled = true;
-        } else {
-            // 恢复原来的 disabled 状态
-            if (btn.dataset.wasDisabled === "true") {
-                btn.disabled = true;
-            } else {
-                btn.disabled = false;
-            }
-        }
+function setButtonsDisabled(disabled) {
+    // 只操作候选区的两个按钮和操作区按钮，不碰遮罩
+    const btns = [
+        $("btn-like"),
+        $("btn-dislike"),
+        $("btn-recommend"),
+        $("btn-restart"),
+    ];
+    btns.forEach((btn) => {
+        if (btn) btn.disabled = disabled;
     });
 }
 
