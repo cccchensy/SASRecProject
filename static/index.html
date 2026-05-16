@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SASRec 番剧推荐系统</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 顶部标题区 -->
+        <header class="header">
+            <h1>SASRec 番剧推荐系统</h1>
+            <p class="subtitle">基于 SASRec 深度序列推荐 &middot; 动态强化冷启动推断</p>
+        </header>
+
+        <!-- 项目说明区 -->
+        <section class="info-section">
+            <p>系统将通过一系列问题了解您的番剧偏好，利用自注意力机制实时捕捉您的兴趣，为您生成个性化推荐。</p>
+            <ul>
+                <li><span class="tag tag-hot">热门初始</span> 从热门番剧中探索您的兴趣</li>
+                <li><span class="tag tag-explore">随机探索</span> 随机抽样打破信息茧房</li>
+                <li><span class="tag tag-smart">智能关联</span> 模型实时推断您的下一部喜好</li>
+            </ul>
+        </section>
+
+        <!-- 错误提示区 -->
+        <div id="error-box" class="error-box hidden"></div>
+
+        <!-- 候选番剧卡片 -->
+        <section id="candidate-section" class="card candidate-card hidden">
+            <div class="candidate-header">
+                <span id="candidate-tag" class="tag">热门初始</span>
+            </div>
+            <h2 id="candidate-name" class="candidate-name">加载中...</h2>
+            <div class="candidate-actions">
+                <button id="btn-like" class="btn btn-like" onclick="submitFeedback('like')">
+                    看过 / 喜欢
+                </button>
+                <button id="btn-dislike" class="btn btn-dislike" onclick="submitFeedback('dislike')">
+                    没看过 / 不感兴趣
+                </button>
+            </div>
+        </section>
+
+        <!-- 进度指示 -->
+        <section id="progress-section" class="progress-section hidden">
+            <p id="progress-text">已收集 <strong id="liked-count">0</strong> / 5 部</p>
+            <div class="progress-bar-bg">
+                <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
+            </div>
+        </section>
+
+        <!-- 已喜欢列表 -->
+        <section id="liked-section" class="liked-section hidden">
+            <h3>已喜欢的番剧</h3>
+            <ul id="liked-list"></ul>
+        </section>
+
+        <!-- 操作按钮 -->
+        <section id="action-section" class="action-section hidden">
+            <button id="btn-recommend" class="btn btn-primary" onclick="generateRecommendations()">
+                生成推荐
+            </button>
+            <button id="btn-restart" class="btn btn-secondary" onclick="restartSession()">
+                重新开始
+            </button>
+        </section>
+
+        <!-- 推荐结果区 -->
+        <section id="result-section" class="hidden">
+            <!-- Top-10 推荐 -->
+            <div class="card result-card">
+                <h2 class="result-title">Top-10 个性化推荐</h2>
+                <ol id="top10-list" class="top10-list"></ol>
+            </div>
+
+            <!-- I2I 关联推荐 -->
+            <div class="card result-card">
+                <h2 class="result-title">看了又看 &middot; 深度关联推荐</h2>
+                <div id="i2i-container"></div>
+            </div>
+
+            <!-- 重新开始 -->
+            <div class="action-section" style="margin-top: 1.5rem;">
+                <button class="btn btn-secondary" onclick="restartSession()">重新开始</button>
+            </div>
+        </section>
+
+        <!-- 加载遮罩 -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="spinner"></div>
+            <p>正在推断中...</p>
+        </div>
+    </div>
+
+    <script src="/static/main.js"></script>
+</body>
+</html>

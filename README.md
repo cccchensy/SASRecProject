@@ -7,12 +7,23 @@
 
 ## 1. 目录结构
 
-确保您的运行目录包含以下核心文件：
-- `inference.py` : 交互式推断主程序入口
-- `sasrec_model.py` : 模型神经网络架构定义
-- `id2name.pkl` : 番剧 ID 到中文译名的映射字典
-- `sasrec_features/item2id.pkl` : 基础特征索引字典
-- `saved_models/sasrec_model_best.pth` : 预训练最佳模型权重
+```text
+SASRecProject/
+├── sasrec_model.py          # 模型神经网络架构定义
+├── recommender_engine.py     # 推荐引擎核心（session 管理 + E&E 策略 + 推荐逻辑）
+├── inference.py              # 命令行交互式推断入口
+├── web_app.py                # FastAPI Web 后端
+├── requirements.txt          # Python 依赖
+├── id2name.pkl               # 番剧 ID 到中文译名的映射字典
+├── sasrec_features/
+│   └── item2id.pkl           # 基础特征索引字典
+├── saved_models/
+│   └── sasrec_model_best.pth # 预训练最佳模型权重
+└── static/
+    ├── index.html            # 前端页面
+    ├── style.css             # 样式
+    └── main.js               # 前端逻辑
+```
 
 ## 2. 环境部署
 
@@ -27,11 +38,13 @@
 
 注：本推断程序原生支持 CPU 运行。如果您的设备支持 CUDA，程序将自动调用 GPU 以加速张量乘法运算。
 
-## 3. 运行指南
+## 3. 命令行运行方式
 
 在项目根目录下，直接运行推断脚本：
 
+```bash
 python inference.py
+```
 
 ## 4. 交互模式说明
 
@@ -44,3 +57,51 @@ python inference.py
 - `y` 或 `1` : 看过 / 感兴趣
 - `n` 或 `0` : 没看过 / 不感兴趣 (该番剧及其底层权重将在后续推断中被降级)
 - `f` : 提前结束收集，立即生成最终的 Top-10 推荐榜单及深度关联推断 (I2I)。
+
+## 5. Web Demo 运行方式
+
+除了命令行模式，本项目还提供了浏览器可访问的 Web Demo。
+
+### 5.1 安装依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+### 5.2 启动 Web 服务
+
+在项目根目录下运行：
+
+```bash
+uvicorn web_app:app --reload
+```
+
+如需指定端口：
+
+```bash
+uvicorn web_app:app --reload --port 8001
+```
+
+### 5.3 浏览器访问
+
+启动后打开浏览器访问：
+
+```text
+http://127.0.0.1:8000
+```
+
+### 5.4 Web Demo 功能
+
+- 页面加载后自动显示第一部候选番剧（热门初始策略）
+- 点击"看过 / 喜欢"或"没看过 / 不感兴趣"提交反馈
+- 连续智能关联 3 次后自动切换为随机探索
+- 点击"生成推荐"获取 Top-10 个性化推荐和看了又看 (I2I) 关联推荐
+- 点击"重新开始"清空结果并创建新会话
+
+### 5.5 注意事项
+
+- 需要保证 `id2name.pkl` 存在于项目根目录
+- 需要保证 `sasrec_features/item2id.pkl` 存在
+- 需要保证 `saved_models/sasrec_model_best.pth` 存在
+- 如果有 CUDA 会自动使用 GPU，否则使用 CPU
+- 模型在服务启动时只加载一次，API 请求不会重复加载
